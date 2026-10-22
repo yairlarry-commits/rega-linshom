@@ -1,0 +1,31 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put web files in www
+        run: |
+          mkdir -p www
+          for f in index.html chime.mp3 manifest.json; do
+            if [ -f "$f" ]; then mv "$f" www/; fi
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install
+      - run: npx cap add android
+      - run: node setup-android.js
+      - run: npx cap sync android
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rega-linshom-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
