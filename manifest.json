@@ -1,0 +1,11 @@
+{
+  "name": "רגע לנשום",
+  "short_name": "רגע לנשום",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#eef2f0",
+  "theme_color": "#3f7a6c",
+  "description": "תזכורות נשימה מודעת עם צליל עוגן קבוע ותזמון גמיש."
+}

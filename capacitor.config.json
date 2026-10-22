@@ -1,0 +1,11 @@
+{
+  "appId": "com.regalinshom.app",
+  "appName": "רגע לנשום",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "sound": "chime.mp3",
+      "iconColor": "#3f7a6c"
+    }
+  }
+}
