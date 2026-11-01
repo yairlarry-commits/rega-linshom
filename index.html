@@ -56,8 +56,8 @@ header p{margin:0;color:var(--muted);font-size:1.05rem}
 .orb .hint{font-size:.88rem;color:var(--muted);max-width:70%;text-align:center}
 .orb[aria-pressed="true"]{border-color:var(--accent);background:radial-gradient(circle at 50% 45%,var(--accent-soft),var(--bg))}
 .orb[aria-pressed="true"] .state{color:var(--on)}
-.orb[aria-pressed="true"]::before{animation:breathe 10s ease-in-out infinite}
-@keyframes breathe{0%{opacity:0;transform:scale(.92)}40%{opacity:.6;transform:scale(1.04)}100%{opacity:0;transform:scale(.92)}}
+.orb[aria-pressed="true"]::before{animation:breathe 13s ease-in-out infinite}
+@keyframes breathe{0%{opacity:0;transform:scale(.92)}46%{opacity:.6;transform:scale(1.04)}100%{opacity:0;transform:scale(.92)}}
 .next{font-size:.92rem;color:var(--muted);min-height:1.4em;font-variant-numeric:tabular-nums}
 .quick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .pill{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-size:.95rem}
@@ -93,6 +93,7 @@ input[type=range]{accent-color:var(--accent);width:140px;max-width:40vw}
 .x{border:0;background:none;color:var(--muted);font-size:1.1rem;padding:2px 6px}
 .clickable{cursor:pointer}
 .clickable:hover{background:var(--accent-soft)}
+.update{display:block;text-align:center;background:var(--accent);color:var(--bg);text-decoration:none;border-radius:12px;padding:12px 14px;font-weight:600}
 .note{font-size:.86rem;color:var(--muted);margin:0}
 .vol{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
 
@@ -110,8 +111,8 @@ input[type=range]{accent-color:var(--accent);width:140px;max-width:40vw}
 .circle{width:min(260px,70vw);aspect-ratio:1;max-width:100%;border-radius:50%;background:radial-gradient(circle,var(--accent-soft) 0%,transparent 70%);
   border:2px solid var(--accent);display:grid;place-items:center;transform:scale(.6);transition:transform 4s ease-in-out}
 .circle span{font-family:var(--font-display);font-size:1.6rem;transform:scale(1.4)}
-.circle.in{transform:scale(1);transition-duration:4s}
-.circle.out{transform:scale(.6);transition-duration:6s}
+.circle.in{transform:scale(1);transition-duration:6s}
+.circle.out{transform:scale(.6);transition-duration:7s}
 .count{color:var(--muted);font-variant-numeric:tabular-nums}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));inset-inline:0;margin:auto;width:fit-content;max-width:90vw;background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.92rem;z-index:30}
 @media (prefers-reduced-motion:reduce){.orb::before{animation:none!important}.circle{transition:none}}
@@ -121,6 +122,7 @@ input[type=range]{accent-color:var(--accent);width:140px;max-width:40vw}
 <body>
 
 <div class="wrap" id="home">
+  <a class="update" id="updateBar" hidden href="https://github.com/yairlarry-commits/rega-linshom/releases/download/latest/rega-linshom.apk">יש גרסה חדשה של האפליקציה · לחץ להורדה</a>
   <header>
     <h1>רגע לנשום</h1>
     <p>נשימה טובה.</p>
@@ -134,11 +136,13 @@ input[type=range]{accent-color:var(--accent);width:140px;max-width:40vw}
     <div class="next" id="nextText" aria-live="polite"></div>
     <div class="quick">
       <button class="pill" id="playBtn">🔔 השמע צליל</button>
-      <button class="pill" id="practiceBtn">◯ תרגול 39 שנ׳</button>
+      <button class="pill" id="practiceBtn">◯ תרגול דקה</button>
     </div>
   </div>
 
   <a class="guide-link" href="#guide" id="toGuide">איך לנשום נכון נשימה אחת מודעת — מספיקה ←</a>
+
+  <div class="quick"><button class="pill" id="shareBtn">📤 שלח לחבר</button></div>
 
   <section class="panel">
     <h2>תזמון</h2>
@@ -245,13 +249,13 @@ let breathTimer=null,breathEnd=0,phaseTimer=null;
 function openCircle(seconds){const ov=$("overlay"),ci=$("circle"),tx=$("circleText");ov.hidden=false;
   breathEnd=Date.now()+seconds*1000;
   const cycle=()=>{ci.className="circle in";tx.textContent="שאיפה";
-    phaseTimer=setTimeout(()=>{ci.className="circle out";tx.textContent="נשיפה";phaseTimer=setTimeout(cycle,6000)},4000)};
+    phaseTimer=setTimeout(()=>{ci.className="circle out";tx.textContent="נשיפה";phaseTimer=setTimeout(cycle,7000)},6000)};
   ci.className="circle";requestAnimationFrame(()=>requestAnimationFrame(cycle));
   const tick=()=>{const left=Math.max(0,Math.ceil((breathEnd-Date.now())/1000));$("countText").textContent=left+" שנ׳";if(left<=0)closeCircle()};
   tick();breathTimer=setInterval(tick,250)}
 function closeCircle(){clearInterval(breathTimer);clearTimeout(phaseTimer);$("overlay").hidden=true}
 $("closeOverlay").onclick=closeCircle;
-$("practiceBtn").onclick=()=>{playReminder();openCircle(39)};
+$("practiceBtn").onclick=()=>{playReminder();openCircle(60)};
 $("playBtn").onclick=playReminder;
 
 /* ---------- Scheduling ---------- */
@@ -271,12 +275,30 @@ let nextAt=null,tick=null,wake=null;
 const LN=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications;
 const CHANNEL="breath-v1";
 async function nativeSetup(){if(!LN)return;try{await LN.createChannel({id:CHANNEL,name:"תזכורות נשימה",description:"צליל עוגן לנשימה מודעת",importance:5,sound:"chime.mp3",vibration:true,visibility:1})}catch(e){}}
+/* Each reminder is scheduled separately for the coming days, so one missed alarm
+   never stops the rest. Opening the app tops the list up again. */
+const MAX_PENDING=400,MAX_DAYS=30;
+let scheduledUntil=null,syncing=false,syncAgain=false;
+function upcomingDates(){const ts=todayTimes(),out=[];if(!ts.length)return out;const now=Date.now();
+  for(let d=0;d<MAX_DAYS&&out.length<MAX_PENDING;d++){
+    for(const x of ts){const at=new Date();at.setHours(0,0,0,0);at.setDate(at.getDate()+d);at.setHours(Math.floor(x/60),x%60,0,0);
+      if(at.getTime()>now+5000)out.push(at);if(out.length>=MAX_PENDING)break}}
+  return out}
 async function nativeSync(){if(!LN)return;
-  try{const p=await LN.getPending();if(p.notifications&&p.notifications.length)await LN.cancel({notifications:p.notifications.map(n=>({id:n.id}))})}catch(e){}
-  if(!(S.on&&S.notif))return;
-  const list=todayTimes().slice(0,200).map((x,i)=>({id:i+1,title:"רגע לנשום",body:"נשימה אחת מודעת.",channelId:CHANNEL,sound:"chime.mp3",
-    schedule:{on:{hour:Math.floor(x/60),minute:x%60},allowWhileIdle:true}}));
-  if(list.length){try{await LN.schedule({notifications:list})}catch(e){toast("תזמון ההתראות נכשל: "+(e&&e.message||e))}}}
+  if(syncing){syncAgain=true;return}syncing=true;
+  try{
+    try{const p=await LN.getPending();if(p.notifications&&p.notifications.length)await LN.cancel({notifications:p.notifications.map(n=>({id:n.id}))})}catch(e){}
+    scheduledUntil=null;
+    if(S.on&&S.notif){
+      const dates=upcomingDates();
+      const list=dates.map((at,i)=>({id:i+1,title:"רגע לנשום",
+        body:i===dates.length-1?"נשימה אחת מודעת. פתח את האפליקציה כדי להמשיך לקבל תזכורות.":"נשימה אחת מודעת.",
+        channelId:CHANNEL,sound:"chime.mp3",schedule:{at,allowWhileIdle:true}}));
+      if(list.length){try{await LN.schedule({notifications:list});scheduledUntil=dates[dates.length-1]}
+        catch(e){toast("תזמון ההתראות נכשל: "+(e&&e.message||e))}}
+    }
+  }finally{syncing=false;render();if(syncAgain){syncAgain=false;nativeSync()}}
+}
 const nativeActive=()=>!!(LN&&S.on&&S.notif);
 function schedule(){nextAt=S.on?nextDue(new Date()):null;render();nativeSync()}
 function fire(){if(!nativeActive())playReminder();
@@ -284,8 +306,32 @@ function fire(){if(!nativeActive())playReminder();
 function loop(){if(S.on&&nextAt&&Date.now()>=nextAt.getTime())fire()}
 tick=setInterval(loop,5000);
 async function keepAwake(){try{if(S.on&&"wakeLock"in navigator&&document.visibilityState==="visible")wake=await navigator.wakeLock.request("screen")}catch(e){}}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){loop();keepAwake()}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){loop();keepAwake();nativeSync()}});
 
+/* ---------- Share ---------- */
+const SHARE_URL="https://github.com/yairlarry-commits/rega-linshom/releases/download/latest/rega-linshom.apk";
+const SHARE_TEXT="רגע לנשום – תזכורות לנשימה מודעת, נשימה אחת בכל צליל. להורדת האפליקציה לאנדרואיד:";
+async function shareApp(){
+  const C=window.Capacitor,SP=C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.Share;
+  try{
+    if(SP){await SP.share({title:"רגע לנשום",text:SHARE_TEXT,url:SHARE_URL,dialogTitle:"שלח לחבר"});return}
+    if(navigator.share){await navigator.share({title:"רגע לנשום",text:SHARE_TEXT,url:SHARE_URL});return}
+  }catch(e){if(e&&(e.name==="AbortError"||/cancel/i.test(e.message||"")))return}
+  try{await navigator.clipboard.writeText(SHARE_TEXT+"\n"+SHARE_URL);toast("הקישור הועתק. אפשר להדביק אותו בוואטסאפ")}
+  catch(e){toast("להורדה: "+SHARE_URL)}
+}
+$("shareBtn").onclick=shareApp;
+/* ---------- Update check ---------- */
+async function checkUpdate(){
+  try{
+    const local=await fetch("version.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>null);
+    if(!local||!local.build)return;
+    const rel=await fetch("https://api.github.com/repos/yairlarry-commits/rega-linshom/releases/tags/latest",{cache:"no-store"}).then(r=>r.ok?r.json():null);
+    const m=rel&&rel.body&&rel.body.match(/build:(\d+)/);
+    if(m&&+m[1]>+local.build)$("updateBar").hidden=false;
+  }catch(e){}
+}
+checkUpdate();
 /* ---------- UI ---------- */
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,2600)}
 function chips(el,vals,cur,fmt,on){el.innerHTML="";vals.forEach(v=>{const b=document.createElement("button");b.className="chip";b.textContent=fmt(v);
@@ -308,7 +354,7 @@ function render(){
     fl.appendChild(r);r.querySelector("input").onchange=e=>{if(e.target.value){S.fixed[i]=e.target.value;save()}};
     r.querySelector(".x").onclick=()=>{S.fixed.splice(i,1);save()}});
   $("volume").value=S.volume;$("volText").textContent=S.volume+"%";
-  $("notif").checked=S.notif;$("notifText").textContent=S.notif?"התראות פעילות":"התראות כבויות";
+  $("notif").checked=S.notif;$("notifText").textContent=!S.notif?"התראות כבויות":(typeof scheduledUntil!=="undefined"&&scheduledUntil&&S.on?"התראות פעילות · מתוזמנות עד "+["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"].map(d=>"יום "+d)[scheduledUntil.getDay()]+" "+String(scheduledUntil.getDate()).padStart(2,"0")+"/"+String(scheduledUntil.getMonth()+1).padStart(2,"0"):"התראות פעילות");
 }
 $("toggle").onclick=()=>{S.on=!S.on;if(S.on){ac();keepAwake()}else if(wake){try{wake.release()}catch(e){}wake=null}save()};
 document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;save()});

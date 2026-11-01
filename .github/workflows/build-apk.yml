@@ -2,6 +2,8 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,8 +13,13 @@ jobs:
         run: |
           mkdir -p www
           for f in index.html chime.mp3 manifest.json; do
-            if [ -f "$f" ]; then mv "$f" www/; fi
+            if [ -f "$f" ]; then cp "$f" www/; fi
           done
+          echo "{\"build\": ${{ github.run_number }}}" > www/version.json
+      - name: Use the same signing key for every build
+        run: |
+          mkdir -p ~/.android
+          cp signing/debug.keystore ~/.android/debug.keystore
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -25,7 +32,17 @@ jobs:
       - run: node setup-android.js
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk rega-linshom.apk
       - uses: actions/upload-artifact@v4
         with:
           name: rega-linshom-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: rega-linshom.apk
+      - name: Publish public download link
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "רגע לנשום · גרסה ${{ github.run_number }}"
+          body: |
+            להורדת האפליקציה, לחץ על rega-linshom.apk
+            build:${{ github.run_number }}
+          files: rega-linshom.apk
