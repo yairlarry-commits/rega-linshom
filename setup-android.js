@@ -75,3 +75,13 @@ public class MainActivity extends BridgeActivity {
 }
 `);
 console.log("Wrote MainActivity with background permission request");
+
+// Give every build a higher version number, so Android always treats it as an update.
+const run = parseInt(process.env.GITHUB_RUN_NUMBER || "0", 10);
+if (run > 0) {
+  const gradlePath = path.join(__dirname, "android", "app", "build.gradle");
+  let gradle = fs.readFileSync(gradlePath, "utf8");
+  gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${run}`).replace(/versionName\s+"[^"]*"/, `versionName "1.${run}"`);
+  fs.writeFileSync(gradlePath, gradle);
+  console.log(`Version set to 1.${run} (code ${run})`);
+}
