@@ -22,6 +22,7 @@ const perms = [
   "android.permission.SCHEDULE_EXACT_ALARM",
   "android.permission.RECEIVE_BOOT_COMPLETED",
   "android.permission.WAKE_LOCK",
+  "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
 ];
 let added = 0;
 for (const p of perms) {
@@ -32,3 +33,45 @@ for (const p of perms) {
 }
 fs.writeFileSync(manifestPath, manifest);
 console.log(`Permissions added: ${added}`);
+
+// Ask Android to stop "optimizing" (killing) the app in the background,
+// so scheduled reminders are not wiped when the app is closed.
+const javaDir = path.join(androidMain, "java", "com", "regalinshom", "app");
+fs.mkdirSync(javaDir, { recursive: true });
+fs.writeFileSync(path.join(javaDir, "MainActivity.java"), `package com.regalinshom.app;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        new Handler(Looper.getMainLooper()).postDelayed(this::askToRunInBackground, 1500);
+    }
+
+    private void askToRunInBackground() {
+        try {
+            if (Build.VERSION.SDK_INT < 23) return;
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (pm == null || pm.isIgnoringBatteryOptimizations(getPackageName())) return;
+            SharedPreferences prefs = getSharedPreferences("rega", MODE_PRIVATE);
+            int asked = prefs.getInt("batteryAsked", 0);
+            if (asked >= 3) return;
+            prefs.edit().putInt("batteryAsked", asked + 1).apply();
+            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            i.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+        } catch (Exception ignored) {}
+    }
+}
+`);
+console.log("Wrote MainActivity with background permission request");
