@@ -25,6 +25,12 @@ const perms = [
   "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
 ];
 let added = 0;
+// Android 13+: USE_EXACT_ALARM is granted automatically, so reminders fire on time
+// instead of being delayed or dropped by battery saving.
+if (!manifest.includes('"android.permission.USE_EXACT_ALARM"')) {
+  manifest = manifest.replace("</manifest>", '    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n</manifest>');
+  added++;
+}
 for (const p of perms) {
   if (!manifest.includes(`"${p}"`)) {
     manifest = manifest.replace("</manifest>", `    <uses-permission android:name="${p}" />\n</manifest>`);
@@ -54,6 +60,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(RegaSystemPlugin.class);
         super.onCreate(savedInstanceState);
         new Handler(Looper.getMainLooper()).postDelayed(this::askToRunInBackground, 1500);
     }
@@ -71,6 +78,58 @@ public class MainActivity extends BridgeActivity {
             i.setData(Uri.parse("package:" + getPackageName()));
             startActivity(i);
         } catch (Exception ignored) {}
+    }
+}
+`);
+fs.writeFileSync(path.join(javaDir, "RegaSystemPlugin.java"), `package com.regalinshom.app;
+
+import android.app.AlarmManager;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "RegaSystem")
+public class RegaSystemPlugin extends Plugin {
+    @PluginMethod
+    public void status(PluginCall call) {
+        Context ctx = getContext();
+        JSObject r = new JSObject();
+        boolean battery = true;
+        if (Build.VERSION.SDK_INT >= 23) {
+            PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            battery = pm != null && pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+        }
+        boolean exact = true;
+        if (Build.VERSION.SDK_INT >= 31) {
+            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            exact = am != null && am.canScheduleExactAlarms();
+        }
+        r.put("batteryUnrestricted", battery);
+        r.put("exactAlarms", exact);
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void openBatterySettings(PluginCall call) {
+        Context ctx = getContext();
+        try {
+            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            i.setData(Uri.parse("package:" + ctx.getPackageName()));
+            getActivity().startActivity(i);
+        } catch (Exception e) {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            i.setData(Uri.parse("package:" + ctx.getPackageName()));
+            getActivity().startActivity(i);
+        }
+        call.resolve();
     }
 }
 `);

@@ -189,6 +189,10 @@ input[type=range]{accent-color:var(--accent);width:140px;max-width:40vw}
         <div>התראות ברקע<small id="notifText">התראות כבויות</small></div>
         <input type="checkbox" class="switch" id="notif" aria-label="התראות ברקע">
       </label>
+      <div class="row" id="healthRow" hidden>
+        <div>בדיקת תקינות<small id="healthText">בודק…</small></div>
+        <button class="chip" id="fixBattery" hidden>תקן</button>
+      </div>
     </div>
     <p class="note" id="bgNote">עם התראות ברקע פעילות, התזכורות מגיעות גם כשהאפליקציה סגורה. כשהאפליקציה סגורה, עוצמת הצליל נקבעת לפי עוצמת ההתראות של המכשיר.</p>
   </section>
@@ -332,6 +336,20 @@ async function checkUpdate(){
   }catch(e){}
 }
 checkUpdate();
+/* ---------- Health check (APK only) ---------- */
+const RS=LN&&window.Capacitor.Plugins&&window.Capacitor.Plugins.RegaSystem;
+async function healthCheck(){
+  if(!LN){return}
+  $("healthRow").hidden=false;
+  const parts=[];let needFix=false;
+  try{const p=await LN.getPending();parts.push((p.notifications||[]).length+" תזכורות ממתינות")}catch(e){}
+  try{if(RS){const st=await RS.status();
+    parts.push(st.batteryUnrestricted?"סוללה: ללא הגבלה ✓":"סוללה: מוגבלת ✗");
+    parts.push(st.exactAlarms?"שעון מדויק ✓":"שעון מדויק ✗");
+    needFix=!st.batteryUnrestricted}}catch(e){}
+  $("healthText").textContent=parts.join(" · ")||"לא זמין";
+  $("fixBattery").hidden=!needFix;
+}
 /* ---------- UI ---------- */
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,2600)}
 function chips(el,vals,cur,fmt,on){el.innerHTML="";vals.forEach(v=>{const b=document.createElement("button");b.className="chip";b.textContent=fmt(v);
@@ -371,7 +389,9 @@ $("notif").onchange=async e=>{if(!e.target.checked){S.notif=false;return save()}
     else if("Notification"in window){const p=Notification.permission==="granted"?"granted":await Notification.requestPermission();ok=p==="granted"}}catch(err){}
   if(!ok){e.target.checked=false;S.notif=false;toast("לא התקבל אישור להתראות. אפשר לאשר בהגדרות המכשיר ולנסות שוב")}
   else{S.notif=true;toast(S.on?"התראות ברקע הופעלו":"התראות ברקע הופעלו. הפעל את התזכורות למעלה")}save()};
-nativeSetup().then(schedule);
+nativeSetup().then(schedule).then(()=>setTimeout(healthCheck,800));
+$("fixBattery").onclick=async()=>{try{if(RS)await RS.openBatterySettings()}catch(e){}};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")setTimeout(healthCheck,1200)});
 if(LN){try{LN.addListener("localNotificationActionPerformed",()=>{location.hash="";route()})}catch(e){}}
 </script>
 
