@@ -62,7 +62,6 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(RegaSystemPlugin.class);
         super.onCreate(savedInstanceState);
-        new Handler(Looper.getMainLooper()).postDelayed(this::askToRunInBackground, 1500);
     }
 
     private void askToRunInBackground() {

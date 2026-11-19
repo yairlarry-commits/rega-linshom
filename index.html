@@ -389,7 +389,20 @@ $("notif").onchange=async e=>{if(!e.target.checked){S.notif=false;return save()}
     else if("Notification"in window){const p=Notification.permission==="granted"?"granted":await Notification.requestPermission();ok=p==="granted"}}catch(err){}
   if(!ok){e.target.checked=false;S.notif=false;toast("לא התקבל אישור להתראות. אפשר לאשר בהגדרות המכשיר ולנסות שוב")}
   else{S.notif=true;toast(S.on?"התראות ברקע הופעלו":"התראות ברקע הופעלו. הפעל את התזכורות למעלה")}save()};
-nativeSetup().then(schedule).then(()=>setTimeout(healthCheck,800));
+/* First launch: ask for notifications, then for running in the background */
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+async function firstRunPermissions(){
+  if(!LN)return;
+  if(!lsGet("rega-notif-asked")){
+    lsSet("rega-notif-asked","1");
+    try{let p=await LN.checkPermissions();if(p.display!=="granted")p=await LN.requestPermissions();
+      if(p.display==="granted"){S.notif=true;try{localStorage.setItem("rega-linshom",JSON.stringify(S))}catch(e){}}}catch(e){}
+  }
+  try{if(RS){const st=await RS.status();const n=+(lsGet("rega-battery-asked")||0);
+    if(!st.batteryUnrestricted&&n<3){lsSet("rega-battery-asked",String(n+1));await RS.openBatterySettings()}}}catch(e){}
+}
+nativeSetup().then(firstRunPermissions).then(schedule).then(()=>setTimeout(healthCheck,800));
 $("fixBattery").onclick=async()=>{try{if(RS)await RS.openBatterySettings()}catch(e){}};
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")setTimeout(healthCheck,1200)});
 if(LN){try{LN.addListener("localNotificationActionPerformed",()=>{location.hash="";route()})}catch(e){}}
