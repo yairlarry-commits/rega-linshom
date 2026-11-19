@@ -144,3 +144,24 @@ if (run > 0) {
   fs.writeFileSync(gradlePath, gradle);
   console.log(`Version set to 1.${run} (code ${run})`);
 }
+
+// Sign every build with the same key (signing/debug.keystore), so updates install over the existing app.
+{
+  const gradlePath = path.join(__dirname, "android", "app", "build.gradle");
+  let gradle = fs.readFileSync(gradlePath, "utf8");
+  if (!gradle.includes("rega-signing")) {
+    const ks = path.join(__dirname, "signing", "debug.keystore").replace(/\\/g, "/");
+    gradle = gradle.replace(/android\s*\{/, `android {
+    // rega-signing
+    signingConfigs {
+        debug {
+            storeFile file("${ks}")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }`);
+    fs.writeFileSync(gradlePath, gradle);
+    console.log("Fixed signing key configured");
+  }
+}
